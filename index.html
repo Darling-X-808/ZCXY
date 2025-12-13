@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的AI对话助手</title>
+    <title>智产协约助手 (流式响应)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -61,11 +61,6 @@
             border-radius: 22px;
             line-height: 1.5;
             word-wrap: break-word;
-            animation: fadeIn 0.3s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
         }
         .user-message {
             align-self: flex-end;
@@ -78,6 +73,17 @@
             background-color: #f0f2f5;
             color: #333;
             border-bottom-left-radius: 6px;
+        }
+        /* 流式响应时的光标动画 */
+        .streaming-cursor::after {
+            content: '▌';
+            animation: cursorBlink 1s infinite;
+            font-weight: bold;
+            color: #8E54E9;
+        }
+        @keyframes cursorBlink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
         }
         .input-area {
             display: flex;
@@ -133,7 +139,6 @@
             border-radius: 22px;
             border-bottom-left-radius: 6px;
             display: none;
-            color: #666;
         }
         .typing-dot {
             display: inline-block;
@@ -151,31 +156,22 @@
             40% { transform: scale(1.0); }
         }
         @media (max-width: 600px) {
-            .chat-container {
-                height: 90vh;
-                border-radius: 16px;
-            }
-            .header {
-                padding: 20px;
-            }
-            #chat-box {
-                padding: 20px;
-            }
-            .input-area {
-                padding: 20px;
-            }
+            .chat-container { height: 90vh; border-radius: 16px; }
+            .header { padding: 20px; }
+            #chat-box { padding: 20px; }
+            .input-area { padding: 20px; }
         }
     </style>
 </head>
 <body>
     <div class="chat-container">
         <div class="header">
-            <h1>🤖 我的AI助手 (已连接Coze)</h1>
-            <p>已连接至你的智能体，请开始对话吧！</p>
+            <h1>🤖 智产协约助手 (流式响应)</h1>
+            <p>已启用流式响应，长时间任务将逐字返回，无需等待。</p>
         </div>
         <div id="chat-box">
             <div class="message bot-message">
-                你好！我已成功连接到后端的Coze智能体。请发送消息开始真实对话。
+                你好！我已启用流式响应模式。即使处理复杂合同，回复也将逐字显示，请开始对话吧。
             </div>
         </div>
         <div class="typing-indicator" id="typing">
@@ -195,37 +191,53 @@
         const sendBtn = document.getElementById('send-btn');
         const typingIndicator = document.getElementById('typing');
 
-        // ==========【已配置你的真实凭证】==========
+        // ==========【你的凭证】==========
         const API_TOKEN = 'Bearer pat_5aFbUX4KeT0JnTFejJ5Dz6Ij5Qm7p0BctcsAf1fBHPGleAIF92HGBfakQMGKdMcY';
-        const BOT_ID = '7582271628420448291'; // 已更新为你提供的最新Bot ID
-        const API_URL = 'https://api.coze.cn/open_api/v2/chat';
+        const BOT_ID = '7582271628420448291';
+        const API_URL = 'https://api.coze.cn/v3/chat';
         // ==============================================
 
-        // 发送消息函数
+        // 发送消息
         function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
-
-            // 1. 显示用户消息
             appendMessage(message, 'user');
             userInput.value = '';
             sendBtn.disabled = true;
-
-            // 2. 调用真实的Coze API
-            callCozeAPI(message);
+            // 调用流式API
+            callStreamingAPI(message);
         }
 
-        // 在聊天框中添加消息
-        function appendMessage(text, sender) {
-            const messageDiv = document.createElement('div');
+        // 添加消息到界面
+        function appendMessage(text, sender, isStreaming = false) {
+            let messageDiv;
+            // 如果是流式消息，尝试找到现有的消息块
+            if (isStreaming && sender === 'bot') {
+                messageDiv = chatBox.querySelector('.bot-message[data-streaming="true"]');
+                if (messageDiv) {
+                    // 移除光标，更新文本，再添加回光标
+                    messageDiv.classList.remove('streaming-cursor');
+                    messageDiv.textContent = text;
+                    messageDiv.classList.add('streaming-cursor');
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                    return;
+                }
+            }
+            // 创建新的消息块
+            messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}-message`;
             messageDiv.textContent = text;
+            if (isStreaming && sender === 'bot') {
+                messageDiv.setAttribute('data-streaming', 'true');
+                messageDiv.classList.add('streaming-cursor');
+            }
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // 调用Coze API
-        async function callCozeAPI(userText) {
+        // 【核心】调用流式API (已修正解析逻辑)
+        async function callStreamingAPI(userText) {
+            // 显示“正在输入”提示
             typingIndicator.style.display = 'block';
             chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -235,34 +247,84 @@
                     headers: {
                         'Authorization': API_TOKEN,
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({
                         'bot_id': BOT_ID,
                         'user': 'user_123',
                         'query': userText,
-                        'stream': false
+                        'stream': true // 🔥 启用流式
                     })
                 });
 
-                const data = await response.json();
+                // 检查响应是否正常
+                if (!response.ok || !response.body) {
+                    throw new Error(`网络响应错误: ${response.status}`);
+                }
+
+                // 隐藏“正在输入”提示
                 typingIndicator.style.display = 'none';
 
-                // 从API返回数据中提取回复文本
-                let botReply = '[未收到有效回复]';
-                if (data && data.messages && data.messages.length > 0) {
-                    botReply = data.messages[0].content;
-                } else if (data && data.content) {
-                    botReply = data.content;
-                } else if (data && data.code !== 0) {
-                    botReply = `API错误 (${data.code}): ${data.msg || '请检查配置'}`;
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let accumulatedText = '';
+
+                // 开始读取流数据
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6);
+                            if (dataStr === '[DONE]') continue;
+
+                            try {
+                                const parsedData = JSON.parse(dataStr);
+                                // ==========【核心：增强的解析逻辑】==========
+                                let contentToAppend = '';
+                                
+                                // 情况1：标准对话消息 (event: 'message')
+                                if (parsedData.event === 'message' && parsedData.message?.type === 'answer') {
+                                    contentToAppend = parsedData.message.content || '';
+                                }
+                                // 情况2：工作流/插件返回的文本 (event: 'conversation.message.delta')
+                                // 这是你当前最可能遇到的情况
+                                else if (parsedData.event === 'conversation.message.delta' && parsedData.delta?.content) {
+                                    contentToAppend = parsedData.delta.content;
+                                }
+                                // 情况3：其他可能包含文本的数据结构
+                                else if (parsedData.content) {
+                                    contentToAppend = parsedData.content;
+                                }
+
+                                // 如果有新内容，则更新到页面
+                                if (contentToAppend && contentToAppend !== accumulatedText) {
+                                    accumulatedText = contentToAppend;
+                                    appendMessage(accumulatedText, 'bot', true);
+                                }
+                                // ============================================
+                            } catch (e) {
+                                console.warn('解析流数据行时出错:', e, '原始数据:', dataStr);
+                            }
+                        }
+                    }
                 }
-                appendMessage(botReply, 'bot');
+
+                // 流式读取完毕，移除光标
+                const finalMessageDiv = chatBox.querySelector('.bot-message[data-streaming="true"]');
+                if (finalMessageDiv) {
+                    finalMessageDiv.classList.remove('streaming-cursor');
+                    finalMessageDiv.removeAttribute('data-streaming');
+                }
 
             } catch (error) {
-                console.error('调用API出错：', error);
+                console.error('调用流式API出错：', error);
                 typingIndicator.style.display = 'none';
-                appendMessage('抱歉，网络请求失败，请检查网络或控制台。', 'bot');
+                // 显示错误信息
+                appendMessage(`请求失败: ${error.message}。请检查控制台或智能体配置。`, 'bot');
             } finally {
                 sendBtn.disabled = false;
                 userInput.focus();
@@ -272,14 +334,11 @@
         // 事件监听
         sendBtn.addEventListener('click', sendMessage);
         userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+            if (e.key === 'Enter') sendMessage();
         });
         userInput.addEventListener('input', () => {
             sendBtn.disabled = !userInput.value.trim();
         });
-
         window.onload = () => userInput.focus();
     </script>
 </body>
