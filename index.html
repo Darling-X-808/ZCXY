@@ -5,30 +5,166 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的AI对话助手</title>
     <style>
-        /* 【样式部分保持不变，已省略以缩短长度，实际文件需包含完整样式】 */
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
-        body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .chat-container { width: 100%; max-width: 800px; height: 85vh; background-color: rgba(255, 255, 255, 0.92); border-radius: 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.3); }
-        .header { background: linear-gradient(90deg, #4776E6 0%, #8E54E9 100%); color: white; padding: 24px 30px; text-align: center; flex-shrink: 0; }
-        .header h1 { font-size: 1.8rem; font-weight: 600; margin-bottom: 6px; }
-        .header p { opacity: 0.9; font-size: 0.95rem; }
-        #chat-box { flex-grow: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-        .message { max-width: 80%; padding: 18px 22px; border-radius: 22px; line-height: 1.5; word-wrap: break-word; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .user-message { align-self: flex-end; background: linear-gradient(90deg, #4776E6, #8E54E9); color: white; border-bottom-right-radius: 6px; }
-        .bot-message { align-self: flex-start; background-color: #f0f2f5; color: #333; border-bottom-left-radius: 6px; }
-        .input-area { display: flex; padding: 25px 30px; border-top: 1px solid #eee; background-color: #fafbfc; flex-shrink: 0; gap: 15px; }
-        #user-input { flex-grow: 1; padding: 18px 24px; border: 2px solid #e1e5eb; border-radius: 50px; font-size: 1rem; outline: none; transition: all 0.3s; background: white; }
-        #user-input:focus { border-color: #8E54E9; box-shadow: 0 0 0 3px rgba(142, 84, 233, 0.1); }
-        #send-btn { background: linear-gradient(90deg, #4776E6, #8E54E9); color: white; border: none; border-radius: 50%; width: 60px; height: 60px; font-size: 1.4rem; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        #send-btn:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(142, 84, 233, 0.4); }
-        #send-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
-        .typing-indicator { align-self: flex-start; padding: 18px 22px; background-color: #f0f2f5; border-radius: 22px; border-bottom-left-radius: 6px; display: none; color: #666; }
-        .typing-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #999; margin-right: 4px; animation: typing-bounce 1.4s infinite ease-in-out both; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            height: 85vh;
+            background-color: rgba(255, 255, 255, 0.92);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .header {
+            background: linear-gradient(90deg, #4776E6 0%, #8E54E9 100%);
+            color: white;
+            padding: 24px 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        #chat-box {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 18px 22px;
+            border-radius: 22px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .user-message {
+            align-self: flex-end;
+            background: linear-gradient(90deg, #4776E6, #8E54E9);
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+        .bot-message {
+            align-self: flex-start;
+            background-color: #f0f2f5;
+            color: #333;
+            border-bottom-left-radius: 6px;
+        }
+        .input-area {
+            display: flex;
+            padding: 25px 30px;
+            border-top: 1px solid #eee;
+            background-color: #fafbfc;
+            flex-shrink: 0;
+            gap: 15px;
+        }
+        #user-input {
+            flex-grow: 1;
+            padding: 18px 24px;
+            border: 2px solid #e1e5eb;
+            border-radius: 50px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s;
+            background: white;
+        }
+        #user-input:focus {
+            border-color: #8E54E9;
+            box-shadow: 0 0 0 3px rgba(142, 84, 233, 0.1);
+        }
+        #send-btn {
+            background: linear-gradient(90deg, #4776E6, #8E54E9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 1.4rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        #send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(142, 84, 233, 0.4);
+        }
+        #send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .typing-indicator {
+            align-self: flex-start;
+            padding: 18px 22px;
+            background-color: #f0f2f5;
+            border-radius: 22px;
+            border-bottom-left-radius: 6px;
+            display: none;
+            color: #666;
+        }
+        .typing-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #999;
+            margin-right: 4px;
+            animation: typing-bounce 1.4s infinite ease-in-out both;
+        }
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes typing-bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-        @media (max-width: 600px) { .chat-container { height: 90vh; border-radius: 16px; } .header { padding: 20px; } #chat-box { padding: 20px; } .input-area { padding: 20px; } }
+        @keyframes typing-bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+        @media (max-width: 600px) {
+            .chat-container {
+                height: 90vh;
+                border-radius: 16px;
+            }
+            .header {
+                padding: 20px;
+            }
+            #chat-box {
+                padding: 20px;
+            }
+            .input-area {
+                padding: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -61,8 +197,8 @@
 
         // ==========【已配置你的真实凭证】==========
         const API_TOKEN = 'Bearer pat_5aFbUX4KeT0JnTFejJ5Dz6Ij5Qm7p0BctcsAf1fBHPGleAIF92HGBfakQMGKdMcY';
-        const BOT_ID = '7581678654566596642';
-        const API_URL = 'https://api.coze.cn/v3/chat';
+        const BOT_ID = '7582271628420448291'; // 已更新为你提供的最新Bot ID
+        const API_URL = 'https://api.coze.cn/open_api/v2/chat';
         // ==============================================
 
         // 发送消息函数
